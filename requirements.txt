@@ -1,9 +1,48 @@
+# FastAPI Core
 fastapi==0.104.1
 uvicorn[standard]==0.24.0
+websockets==12.0
+
+# Pydantic for data validation
 pydantic==2.5.0
+
+# HTTP client for Supabase
 httpx==0.25.2
+requests==2.31.0
+
+# Environment configuration
 python-dotenv==1.0.0
+
+# File upload support
 python-multipart==0.0.6
+
+# Text processing and similarity
 python-Levenshtein==0.23.0
+
+# Audio processing (basic support)
+numpy==1.26.4
+
+# Testing
 pytest==7.4.3
 pytest-asyncio==0.21.1
+
+# Development tools
+black==23.12.0
+isort==5.13.2
+
+# Logging and monitoring
+python-json-logger==2.0.7
+
+# Async utilities
+asyncio-throttle==1.0.2
+
+# Security (if needed for production)
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+
+# Optional: Database migrations (if using Alembic)
+# alembic==1.13.1
+
+# Optional: Redis for caching (if needed)
+# redis==5.0.1
+# hiredis==2.2.3

@@ -1,0 +1,61 @@
+# ngrok.yml - Configuration file untuk expose FastAPI ke public
+# Place this file in your home directory: ~/.ngrok2/ngrok.yml
+# Or use: ngrok config add-authtoken YOUR_AUTHTOKEN
+
+version: "2"
+
+# Get your authtoken from https://dashboard.ngrok.com/get-started/your-authtoken
+authtoken: YOUR_AUTHTOKEN_HERE
+
+# Console UI configuration
+console_ui: true
+console_ui_color: transparent
+
+# Tunnel configuration
+tunnels:
+  # Main FastAPI application
+  quran-api:
+    proto: http
+    addr: 8000  # FastAPI default port
+    hostname: quran-transcript-api  # Optional: custom subdomain (requires paid plan)
+    bind_tls: true  # Enable HTTPS
+    inspect: true   # Enable request inspection
+    
+    # Custom headers for CORS and WebSocket
+    request_headers:
+      add:
+        - "X-Forwarded-Proto: https"
+    
+    # WebSocket support (important for live streaming)
+    websocket_tcp_converter: true
+  
+  # Optional: Separate tunnel for WebSocket if needed
+  quran-ws:
+    proto: http
+    addr: 8001  # Alternative port for WebSocket-only server
+    hostname: quran-ws  # Optional: custom subdomain
+    bind_tls: true
+    websocket_tcp_converter: true
+  
+  # Optional: Static files or dashboard
+  quran-dashboard:
+    proto: http
+    addr: 3000  # If you have a frontend dashboard
+    hostname: quran-dashboard
+    bind_tls: true
+
+# Web interface configuration
+web_addr: localhost:4040  # ngrok web interface
+log_level: info
+log_format: logfmt
+
+# Region selection (choose closest to your location)
+# Options: us, eu, ap, au, sa, jp, in
+region: ap  # Asia Pacific (good for Indonesia)
+
+# Update configuration
+update_channel: stable
+update_check: false
+
+# Metadata for tracking
+metadata: '{"service": "quran-transcript-api", "version": "1.0.0"}'
