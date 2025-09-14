@@ -268,7 +268,7 @@ async def handle_transcript_message(websocket: WebSocket, session_id: str, data:
 
 async def handle_move_ayah_message(websocket: WebSocket, session_id: str, data: Dict[str, Any]):
     """
-    Handle move to different ayah
+    Handle move to different ayah - FIXED VERSION
     Format: {"type": "move_ayah", "ayah": 5, "position": 0}
     """
     try:
@@ -283,38 +283,57 @@ async def handle_move_ayah_message(websocket: WebSocket, session_id: str, data: 
             })
             return
         
-        # Update session via live_session_service
-        await supabase_service.update_live_session(session_id, {
-            "ayah": new_ayah,
-            "position": new_position
-        })
+        # Validate ayah number
+        if not isinstance(new_ayah, int) or new_ayah < 1:
+            await websocket.send_json({
+                "type": "error",
+                "message": "Invalid ayah number",
+                "sessionId": session_id
+            })
+            return
         
-        # Get updated session status
-        updated_status = await live_session_service.get_session_status(session_id)
+        # Use live_session_service to move ayah (proper way)
+        move_result = await live_session_service.move_ayah_session(session_id, new_ayah, new_position)
         
-        # Send response
+        # Send success response with complete data
         await websocket.send_json({
             "type": "ayah_moved",
             "sessionId": session_id,
-            "surah_id": updated_status["surah_id"],
-            "ayah": new_ayah,
-            "position": new_position,
-            "current_ayah": updated_status["current_ayah"],
-            "message": f"Moved to ayah {new_ayah}"
+            "surah_id": move_result["surah_id"],
+            "previous_ayah": move_result["previous_ayah"],
+            "new_ayah": move_result["new_ayah"],
+            "new_position": move_result["new_position"],
+            "ayah_data": move_result["ayah_data"],
+            "status": "success",
+            "message": move_result["message"],
+            "timestamp": datetime.utcnow().isoformat()
         })
         
-        # Log the move
-        await transcript_logger.log_session_event(
-            session_id, "ayah_moved",
-            f"Moved to ayah {new_ayah}, position {new_position}"
-        )
+        # Broadcast to other connections if any
+        await connection_manager.broadcast_to_session(session_id, {
+            "type": "ayah_moved",
+            "sessionId": session_id,
+            "surah_id": move_result["surah_id"],
+            "new_ayah": move_result["new_ayah"],
+            "new_position": move_result["new_position"],
+            "message": f"Session moved to ayah {move_result['new_ayah']}"
+        })
         
+    except ValueError as e:
+        # Handle specific validation errors
+        await websocket.send_json({
+            "type": "error",
+            "message": str(e),
+            "sessionId": session_id,
+            "error_type": "validation_error"
+        })
     except Exception as e:
         logger.error(f"Error moving ayah for {session_id}: {e}")
         await websocket.send_json({
             "type": "error",
-            "message": f"Move ayah error: {str(e)}",
-            "sessionId": session_id
+            "message": f"Failed to move ayah: {str(e)}",
+            "sessionId": session_id,
+            "error_type": "internal_error"
         })
 
 async def handle_ping_message(websocket: WebSocket, session_id: str):

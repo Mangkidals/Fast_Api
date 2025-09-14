@@ -37,7 +37,7 @@ class LiveSession(BaseModel):
 
 class TranscriptLog(BaseModel):
     id: Optional[int] = None
-    session_id: str
+    session_id: uuid.UUID  # Foreign key ke live_sessions.id
     transcript: str
     is_final: bool
     created_at: Optional[datetime] = None
@@ -52,9 +52,11 @@ class TranscriptResult(BaseModel):
 
 class StartSessionRequest(BaseModel):
     user_id: str
-    surah_id: int
-    ayah: int
     mode: SessionMode = SessionMode.SURAH
+    surah_id: Optional[int] = None
+    juz_id: Optional[int] = None
+    page_id: Optional[int] = None
+    ayah: Optional[int] = None
     data: Optional[Dict[str, Any]] = Field(default_factory=dict)
 
 class StartSessionResponse(BaseModel):

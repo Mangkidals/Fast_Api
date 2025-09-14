@@ -34,9 +34,10 @@ class QuranAyat(BaseModel):
     quarter_hizb: int
     manzil: int
     no_tashkeel: str
-    words_array: List[str] = []
-    words_array_nt: List[str] = []
+    words_array: List[str] = Field(default_factory=list)
+    words_array_nt: Optional[List[str]] = Field(default_factory=list)  # Changed here
     has_asbabun: bool = False
+
 
 class AudioAyat(BaseModel):
     id: int

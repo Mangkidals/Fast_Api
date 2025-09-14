@@ -9,44 +9,6 @@ from services.supabase import supabase_service
 
 router = APIRouter()
 
-@router.get("/{surah_id}/{ayah}", response_model=QuranResponse)
-async def get_ayat(surah_id: int, ayah: int):
-    """Get specific ayah from Quran"""
-    try:
-        # Validate parameters
-        if surah_id < 1 or surah_id > 114:
-            raise HTTPException(status_code=400, detail="Surah ID must be between 1 and 114")
-        
-        if ayah < 1:
-            raise HTTPException(status_code=400, detail="Ayah number must be greater than 0")
-        
-        # Get ayah data
-        ayat_data = await supabase_service.get_ayat(surah_id, ayah)
-        if not ayat_data:
-            raise HTTPException(
-                status_code=404, 
-                detail=f"Ayah {surah_id}:{ayah} not found"
-            )
-        
-        # Get surat info
-        surat_info = await supabase_service.get_surat_info(surah_id)
-        
-        result = AyatWithSurat(
-            ayat=ayat_data,
-            surat=surat_info
-        )
-        
-        return QuranResponse(
-            success=True,
-            data=result.dict(),
-            message=f"Successfully retrieved ayah {surah_id}:{ayah}",
-            count=1
-        )
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 @router.get("/juz/{juz_number}", response_model=QuranResponse)
 async def get_juz(juz_number: int):
@@ -141,6 +103,46 @@ async def get_page(page_number: int):
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+    
+@router.get("/{surah_id}/{ayah}", response_model=QuranResponse)
+async def get_ayat(surah_id: int, ayah: int):
+    """Get specific ayah from Quran"""
+    try:
+        # Validate parameters
+        if surah_id < 1 or surah_id > 114:
+            raise HTTPException(status_code=400, detail="Surah ID must be between 1 and 114")
+            
+        if ayah < 1:
+            raise HTTPException(status_code=400, detail="Ayah number must be greater than 0")
+        
+        # Get ayah data
+        ayat_data = await supabase_service.get_ayat(surah_id, ayah)
+        if not ayat_data:
+            raise HTTPException(
+                status_code=404, 
+                detail=f"Ayah {surah_id}:{ayah} not found"
+            )
+        
+        # Get surat info
+        surat_info = await supabase_service.get_surat_info(surah_id)
+        
+        result = AyatWithSurat(
+            ayat=ayat_data,
+            surat=surat_info
+        )
+        
+        return QuranResponse(
+            success=True,
+            data=result.dict(),
+            message=f"Successfully retrieved ayah {surah_id}:{ayah}",
+            count=1
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
 
 @router.get("/surat/{surah_id}", response_model=QuranResponse)
 async def get_surat_info_endpoint(surah_id: int):

@@ -152,6 +152,99 @@ class LiveSessionService:
         except Exception as e:
             logger.error(f"Error updating session {session_id}: {e}")
             raise
+       # services/live_session.py - ADD THIS METHOD
+
+    async def move_ayah_session(self, session_id: str, new_ayah: int, new_position: int = 0) -> Dict[str, Any]:
+        """
+        Move session to different ayah - COMPLETE IMPLEMENTATION
+        This method was missing from the original live_session.py!
+        """
+        try:
+            logger.info(f"Moving session {session_id} to ayah {new_ayah}, position {new_position}")
+            
+            # Get current session data
+            session_data = await self._get_session_data(session_id)
+            if not session_data:
+                raise ValueError(f"Session {session_id} not found or inactive")
+            
+            current_session = session_data["session"]
+            current_surah_id = current_session.surah_id
+            
+            logger.info(f"Current session data: surah={current_surah_id}, ayah={current_session.ayah}")
+            
+            # Validate new ayah exists in current surah
+            new_ayah_data = await supabase_service.get_ayat(current_surah_id, new_ayah)
+            if not new_ayah_data:
+                raise ValueError(f"Ayah {current_surah_id}:{new_ayah} not found in database")
+            
+            logger.info(f"Found new ayah data: {new_ayah_data.arabic[:50]}...")
+            
+            # Validate position
+            new_words = new_ayah_data.words_array or new_ayah_data.arabic.split()
+            if new_position >= len(new_words):
+                logger.warning(f"Position {new_position} >= total words {len(new_words)}, adjusting to 0")
+                new_position = 0
+            
+            # Update database session
+            update_data = {
+                "ayah": new_ayah,
+                "position": new_position,
+                "updated_at": datetime.utcnow().isoformat()
+            }
+            
+            logger.info(f"Updating database with: {update_data}")
+            await supabase_service.update_live_session(session_id, update_data)
+            
+            # Update cache with new ayah data
+            logger.info("Updating session cache...")
+            self.active_sessions[session_id].update({
+                "current_ayah": new_ayah_data,
+                "current_words": new_words,
+                "position": new_position,
+                "provisional_results": []  # Clear provisional results
+            })
+            
+            # Update session object in cache
+            self.active_sessions[session_id]["session"].ayah = new_ayah
+            self.active_sessions[session_id]["session"].position = new_position
+            
+            # Log the move
+            await transcript_logger.log_session_event(
+                session_id, "ayah_moved",
+                f"Moved from {current_session.ayah} to {new_ayah}, position {new_position}"
+            )
+            
+            result = {
+                "sessionId": session_id,
+                "surah_id": current_surah_id,
+                "previous_ayah": current_session.ayah,
+                "new_ayah": new_ayah,
+                "new_position": new_position,
+                "ayah_data": {
+                    "arabic": new_ayah_data.arabic,
+                    "transliteration": new_ayah_data.transliteration,
+                    "words_array": new_ayah_data.words_array or [],
+                    "total_words": len(new_words)
+                },
+                "status": "success",
+                "message": f"Successfully moved to ayah {current_surah_id}:{new_ayah}"
+            }
+            
+            logger.info(f"Move ayah completed successfully: {result['message']}")
+            return result
+            
+        except ValueError as ve:
+            logger.error(f"Validation error moving ayah for session {session_id}: {ve}")
+            await transcript_logger.log_error(
+                session_id, "move_ayah_validation_error", str(ve)
+            )
+            raise
+        except Exception as e:
+            logger.error(f"Unexpected error moving ayah for session {session_id}: {e}")
+            await transcript_logger.log_error(
+                session_id, "move_ayah_error", str(e)
+            )
+            raise
 
     async def end_session(self, session_id: str) -> EndSessionResponse:
         """End live session"""
