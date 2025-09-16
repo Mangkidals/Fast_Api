@@ -137,7 +137,7 @@ class SupabaseService:
 
     async def get_live_session(self, session_id: str) -> Optional[LiveSession]:
         """Get live session by ID"""
-        params = {"id": f"eq.{session_id}"}
+        params = {"session_id": f"eq.{session_id}"}
         result = await self._make_request("GET", "live_sessions", params=params, use_service_role=True)
         
         if result and len(result) > 0:
@@ -162,7 +162,7 @@ class SupabaseService:
         
         await self._make_request(
             "PATCH",
-            f"live_sessions?id=eq.{session_id}",
+            f"live_sessions?session_id=eq.{session_id}",
             data=updates,
             use_service_role=True
         )
