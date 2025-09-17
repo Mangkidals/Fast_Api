@@ -1,8 +1,5 @@
-"""
-Pydantic models for live session and transcript data
-"""
 from pydantic import BaseModel, Field
-from typing import List, Optional, Dict, Any, Union
+from typing import List, Optional, Dict, Any
 from datetime import datetime
 from enum import Enum
 import uuid
@@ -23,26 +20,34 @@ class TranscriptStatus(str, Enum):
     PROVIS_MATCHED = "provis_matched"
     PROVIS_MISMATCHED = "provis_mismatched"
 
+
+# 🔹 Live Session
 class LiveSession(BaseModel):
-    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    id: str  # uuid PK
+    session_id: str  # public session key
     user_id: str
     surah_id: int
-    ayah: int
+    ayah: int   
     position: int = 0
     mode: SessionMode
     data: Dict[str, Any] = Field(default_factory=dict)
     status: SessionStatus = SessionStatus.ACTIVE
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
+    ended_at: Optional[datetime] = None
 
+
+# 🔹 Transcript Logs
 class TranscriptLog(BaseModel):
     id: Optional[int] = None
-    session_id: uuid.UUID  # Foreign key ke live_sessions.id
+    session_id: str  # FK to live_sessions.session_id
     transcript: str
-    is_final: bool
+    is_final: bool = False
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 
+
+# 🔹 Transcript Results
 class TranscriptResult(BaseModel):
     position: int
     expected: str
@@ -50,6 +55,8 @@ class TranscriptResult(BaseModel):
     status: TranscriptStatus
     similarity_score: Optional[float] = None
 
+
+# 🔹 Requests & Responses
 class StartSessionRequest(BaseModel):
     user_id: str
     mode: SessionMode = SessionMode.SURAH
@@ -66,7 +73,7 @@ class StartSessionResponse(BaseModel):
     status: SessionStatus
     position: int
     message: str = "Live session started successfully"
-    
+
 class MoveAyahRequest(BaseModel):
     ayah: int
     position: int = 0

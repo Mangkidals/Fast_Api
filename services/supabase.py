@@ -82,7 +82,7 @@ class SupabaseService:
     async def get_ayat(self, surah_id: int, ayah: int) -> Optional[QuranAyat]:
         """Get specific ayah from quran_ayat table"""
         params = {"surah_id": f"eq.{surah_id}", "ayah": f"eq.{ayah}"}
-        result = await self._make_request("GET", "quran_ayat", params=params)
+        result = await self._make_request("GET", "m10_quran_ayah", params=params)
         
         if result and len(result) > 0:
             return QuranAyat(**result[0])
@@ -91,14 +91,14 @@ class SupabaseService:
     async def get_ayat_by_juz(self, juz: int) -> List[QuranAyat]:
         """Get all ayat in a specific juz"""
         params = {"juz": f"eq.{juz}", "order": "surah_id.asc,ayah.asc"}
-        result = await self._make_request("GET", "quran_ayat", params=params)
+        result = await self._make_request("GET", "m10_quran_ayah", params=params)
         
         return [QuranAyat(**item) for item in result] if result else []
 
     async def get_ayat_by_page(self, page: int) -> List[QuranAyat]:
         """Get all ayat in a specific page"""
         params = {"page": f"eq.{page}", "order": "surah_id.asc,ayah.asc"}
-        result = await self._make_request("GET", "quran_ayat", params=params)
+        result = await self._make_request("GET", "m10_quran_ayah", params=params)
         
         return [QuranAyat(**item) for item in result] if result else []
 
@@ -137,7 +137,7 @@ class SupabaseService:
 
     async def get_live_session(self, session_id: str) -> Optional[LiveSession]:
         """Get live session by ID"""
-        params = {"id": f"eq.{session_id}"}
+        params = {"session_id": f"eq.{session_id}"}
         result = await self._make_request("GET", "live_sessions", params=params, use_service_role=True)
         
         if result and len(result) > 0:
@@ -162,7 +162,7 @@ class SupabaseService:
         
         await self._make_request(
             "PATCH",
-            f"live_sessions?id=eq.{session_id}",
+            f"live_sessions?session_id=eq.{session_id}",
             data=updates,
             use_service_role=True
         )
