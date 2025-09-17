@@ -1,7 +1,7 @@
 """
 Pydantic models for Quran data structures
 """
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from typing import List, Optional, Dict, Any
 from datetime import datetime
 import uuid
@@ -35,8 +35,14 @@ class QuranAyat(BaseModel):
     manzil: int
     no_tashkeel: str
     words_array: List[str] = Field(default_factory=list)
-    words_array_nt: Optional[List[str]] = Field(default_factory=list)  # Changed here
+    words_array_nt: Optional[List[str]] = Field(default_factory=list)
     has_asbabun: bool = False
+
+    @field_validator("quarter_hizb", mode="before")
+    def cast_quarter_hizb(cls, v):
+        if isinstance(v, float):
+            return int(v)  # or round(v)
+        return v
 
 
 class AudioAyat(BaseModel):

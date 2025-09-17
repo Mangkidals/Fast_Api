@@ -5,6 +5,7 @@ import uuid
 from typing import List, Dict, Any, Optional, Tuple
 from datetime import datetime
 import logging
+from sockets.helpers_ws import connection_manager
 
 from models.session import (
     LiveSession, TranscriptLog, SessionStatus, SessionMode,
@@ -230,7 +231,7 @@ class LiveSessionService:
                 "message": f"Successfully moved to ayah {current_surah_id}:{new_ayah}"
             }
             
-            logger.info(f"Move ayah completed successfully: {result['message']}")
+            logger.info(f"Session {session_id} moved from ayah {current_session.ayah} → {new_ayah}, position {new_position}")
             return result
             
         except ValueError as ve:
@@ -338,6 +339,16 @@ class LiveSessionService:
                 
                 if next_ayah <= surat_info.jumlahayat:
                     await self._update_session_ayah(session_id, session.surah_id, next_ayah)
+
+                    # 🔥 broadcast ke semua client yang join session ini
+                    await connection_manager.broadcast_to_session(session_id, {
+                        "type": "ayah_moved",   # kalau mau bedain: ganti ke "ayah_auto_moved"
+                        "sessionId": session_id,
+                        "surah_id": session.surah_id,
+                        "new_ayah": next_ayah,
+                        "new_position": 0,
+                        "message": f"Advanced automatically to ayah {session.surah_id}:{next_ayah}"
+                    })
                     return True
                 else:
                     # End of surah
@@ -353,6 +364,16 @@ class LiveSessionService:
                 for ayah in next_ayahs:
                     if current_found:
                         await self._update_session_ayah(session_id, ayah.surah_id, ayah.ayah)
+
+                        # 🔥 broadcast
+                        await connection_manager.broadcast_to_session(session_id, {
+                            "type": "ayah_moved",
+                            "sessionId": session_id,
+                            "surah_id": ayah.surah_id,
+                            "new_ayah": ayah.ayah,
+                            "new_position": 0,
+                            "message": f"Advanced automatically to ayah {ayah.surah_id}:{ayah.ayah}"
+                        })
                         return True
                     if ayah.surah_id == session.surah_id and ayah.ayah == session.ayah:
                         current_found = True
@@ -370,6 +391,16 @@ class LiveSessionService:
                 for ayah in juz_ayahs:
                     if current_found:
                         await self._update_session_ayah(session_id, ayah.surah_id, ayah.ayah)
+
+                        # 🔥 broadcast
+                        await connection_manager.broadcast_to_session(session_id, {
+                            "type": "ayah_moved",
+                            "sessionId": session_id,
+                            "surah_id": ayah.surah_id,
+                            "new_ayah": ayah.ayah,
+                            "new_position": 0,
+                            "message": f"Advanced automatically to ayah {ayah.surah_id}:{ayah.ayah}"
+                        })
                         return True
                     if ayah.surah_id == session.surah_id and ayah.ayah == session.ayah:
                         current_found = True
@@ -383,7 +414,7 @@ class LiveSessionService:
         except Exception as e:
             logger.error(f"Error advancing to next ayah for session {session_id}: {e}")
             return False
-
+        
     async def _update_session_ayah(self, session_id: str, surah_id: int, ayah: int):
         """Update session to new ayah"""
         # Get new ayah data
@@ -395,7 +426,8 @@ class LiveSessionService:
         await supabase_service.update_live_session(session_id, {
             "surah_id": surah_id,
             "ayah": ayah,
-            "position": 0
+            "position": 0,
+            "updated_at": datetime.utcnow().isoformat()
         })
         
         # Update cache
@@ -405,32 +437,36 @@ class LiveSessionService:
             "position": 0,
             "provisional_results": []
         })
+
+        # Update LiveSession object inside cache
+        session_obj = self.active_sessions[session_id]["session"]
+        session_obj.surah_id = surah_id
+        session_obj.ayah = ayah
+        session_obj.position = 0
+        session_obj.updated_at = datetime.utcnow()
         
+        # Broadcast to clients (optional)
+        await connection_manager.broadcast_to_session(session_id, {
+            "type": "ayah_advanced",
+            "sessionId": session_id,
+            "surah_id": surah_id,
+            "ayah": ayah,
+            "position": 0,
+            "ayah_data": {
+                "arabic": new_ayah.arabic,
+                "transliteration": new_ayah.transliteration,
+                "words_array": new_ayah.words_array or []
+            }
+        })
+
+
         # Log ayah change
         await transcript_logger.log_session_event(
             session_id, "ayah_advanced", 
             f"Advanced to {surah_id}:{ayah}"
         )
 
-    async def cleanup_inactive_sessions(self, hours: int = 24):
-        """Cleanup sessions that have been inactive for specified hours"""
-        try:
-            # This would be called by a background task
-            cutoff_time = datetime.utcnow().timestamp() - (hours * 3600)
-            
-            # Remove from cache (simple cleanup)
-            inactive_sessions = []
-            for session_id, session_data in self.active_sessions.items():
-                session = session_data["session"]
-                if session.updated_at and session.updated_at.timestamp() < cutoff_time:
-                    inactive_sessions.append(session_id)
-            
-            for session_id in inactive_sessions:
-                await self.end_session(session_id)
-                logger.info(f"Cleaned up inactive session: {session_id}")
-                
-        except Exception as e:
-            logger.error(f"Error cleaning up inactive sessions: {e}")
+        logger.info(f"Session {session_id} advanced to {surah_id}:{ayah}, total words={len(new_ayah.words_array or new_ayah.arabic.split())}")
 
 # Global instance
 live_session_service = LiveSessionService()

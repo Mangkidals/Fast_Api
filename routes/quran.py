@@ -167,7 +167,7 @@ async def get_surat_info_endpoint(surah_id: int):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
-@router.get("/search")
+@router.get("/search", response_model=QuranResponse )
 async def search_ayat(
     query: str = Query(..., min_length=2, description="Search query"),
     language: str = Query("arabic", regex="^(arabic|transliteration|translation)$"),
